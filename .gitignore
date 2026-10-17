@@ -1,0 +1,56 @@
+# Virtual environments
+.tfenv/
+tfenv/
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ML artifacts / experiment tracking
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.safetensors
+wandb/
+mlruns/
+runs/
+lightning_logs/
+outputs/
+logs/
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
