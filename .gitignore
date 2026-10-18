@@ -47,6 +47,22 @@ outputs/
 logs/
 *.log
 
+# Datasets: never commit (Pitt and NSRR agreements forbid redistribution)
+data/*
+!data/README.md
+
+# Safety net in case data ends up outside data/
+*.xpt
+*.XPT
+*.dta
+*.sas7bdat
+*.cha
+*.edf
+*.wav
+*.mp3
+*.flac
+*.zip
+
 # IDE / OS
 .vscode/
 .idea/
@@ -54,3 +70,6 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+
+*test.py
