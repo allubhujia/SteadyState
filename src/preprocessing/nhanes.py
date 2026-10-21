@@ -9,6 +9,7 @@ Writes data/processed/nhanes/
 Run from the repo root:  python src/preprocessing/nhanes.py
 """
 
+from torch._jit_internal import ignore
 from decimal import MIN_EMIN
 from test import load_cognition
 from pathlib import Path
@@ -124,6 +125,37 @@ def load_nights(cycle: str) -> pd.DataFrame:
     n["lux_mean"] = n["lux_total"]/n["valid_min"].replace(0, np.nan)
     return n.drop(columns=["sleep_x_h", "lux_total"])
 
+def add_within_person_deviation(n: pd.DataFrame) -> pd.DataFrame:
+    g = n.groupby("SEQN")["sleep_h"]
+    n["sleep_h_dev"] = n["sleep_h"] - g.transform("mean")
+    n["sleep_h_z"] = n["sleep_h_dev"] / g.transform("std")
+    return n
+
+def summarise_nights(n: pd.DataFrame) -> pd.DataFrame:
+    g = n.groupby("SEQN")
+    s = g.agg(
+        n_valid_nights=("sleep_h", "size"),
+        sleep_h_mean=("sleep_h", "mean"),
+        sleep_h_sd=("sleep_h", "std"),
+        sleep_h_min=("sleep_h", "min"),
+        sleep_h_max=("sleep_h", "max"),
+        nap_min_mean=("nap_min", "mean"),
+        midpoint_h_since_noon_mean=("sleep_midpoint_h_since_noon", "mean"),
+        midpoint_h_sd=("sleep_midpoint_h_since_noon", "std"),
+        mims_per_day=("mims_total", "mean"),
+        lux_mean=("lux_mean", "mean"),
+    ).reset_index()
+    s["sleep_h_cv"] = s["sleep_h_sd"]/s["sleep_h_mean"]
+    return s
+
+def add_cognitive_composite(df: pd.DataFrame) -> pd.DataFrame:
+    df["cog_complete"] = df[COG_TESTS].notna().all(axis=1).astype(int)
+    ref = df[df["cog_complete"]==1]
+    for t in COG_TESTS:
+        df[f"{t}_z"] = (df[t]-ref[t].mean())/ref[t].std()
+    df["cog_composite_z"] = df[[f"{t}_z" for t in COG_TESTS]].mean(axis=1, skipna=False)
+    return df
+
 
 def main() -> None:
     OUT.mkdirs(parents=True, exits_ok=True)
@@ -135,3 +167,30 @@ def main() -> None:
         slq.append(load_sleep_questionnaire(cycle))
         cog.append(load_cognition(cycle))
         nights.append(load_nights(cycle))
+    demo, slq, cog, nights = (pd.concat(x, ignore_index=True) for x in (demo, slq, cog, nights))
+
+    older = set(demo.loc[demo["age"] >= MIN_AGE, "SEQN"])
+    nights = nights[nights["SEQN"].isin(older) & (nights["valid_night"] == 1)]
+    counts = nights.grouby("SEQN").size()
+    keep = set(counts[counts >= MIN_VALID_NIGHTS].index)
+    nights = add_within_person_deviation(nights[nights["SEQN"].isin(keep)].copy())
+
+    participants = (
+        demo[demo["SEQN"].isin(keep)]
+        .merge(slq, on="SEQN", how="left")
+        .merge(cog, on="SEQN", how="left")
+        .merge(summarise_nights(nights), on="SEQN", how="left")
+    )
+    participants = add_cognitive_composite(participants)
+
+    nights = nights.drop(columns="valid_nights")
+    nights.to_csv(OUT/ "nhanes_nights.csv", index=False)
+    participants.to_csv(OUT/ "nhanes_participants.csv", index=False)
+
+    print(f"Age {MIN_AGE}+ with >= {MIN_VALID_NIGHTS} valid nights: {len(participants):,}")
+    print(f" With complete cognition: {participants['cog_complete'].sum():,}")
+    print(f"Nights: {len(nights):,}")
+    print(f"Wrote {OUT}")
+
+if __name__ == "__main__":
+    main()
