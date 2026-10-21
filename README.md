@@ -23,3 +23,5 @@ Early stage. Code and setup instructions are coming soon.
 ## Author
 
 Veer Vikram Saxena
+Vasu Jindal
+Sharvari Mahurkar
