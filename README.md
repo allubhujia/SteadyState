@@ -18,7 +18,7 @@ Speech often gets simpler before cognitive decline is clinically obvious: vocabu
 
 ## Status
 
-Early stage. Code and setup instructions are coming soon.
+Early stage. Code and setup instructions are in progress.
 
 ## Author
 
