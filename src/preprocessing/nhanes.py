@@ -159,7 +159,7 @@ def main() -> None:
 
     demo, slq, cog, nights = [], [], [], []
     for cycle in CYCLES:
-        print(f"Reading{ cycle} ...")
+        print(f"Reading {cycle} ...")
         demo.append(load_demographics(cycle))
         slq.append(load_sleep_questionnaire(cycle))
         cog.append(load_cognition(cycle))
