@@ -9,14 +9,11 @@ Writes data/processed/nhanes/
 Run from the repo root:  python src/preprocessing/nhanes.py
 """
 
-from torch._jit_internal import ignore
-from decimal import MIN_EMIN
-from test import load_cognition
 from pathlib import Path
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent[2]
+ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "raw" / "nhanes"
 OUT = ROOT / "data" / "processed" / "nhanes" 
 
@@ -34,7 +31,7 @@ def read_xpt(cycle: str, name: str) -> pd.DataFrame:
     sfx = CYCLES[cycle]
     df = pd.read_sas(RAW / cycle / f"{name}_{sfx}.xpt", format="xport")
     for col in df.columns:
-        if df[col].dtyp == object:
+        if df[col].dtype == object:
             df[col] = df[col].str.decode("utf-8").str.strip()
         else:
             df[col] = df[col].mask(df[col].abs()<SAS_ZERO, 0.0)
@@ -53,8 +50,8 @@ def load_demographics(cycle: str) -> pd.DataFrame:
         "age": d["RIDAGEYR"],
         "female": (d["RIAGENDR"]==2).astype(int),
         "race_eth": d["RIDRETH3"],
-        "education": d["DMDEDU2"].where(d["DMDEDUC2"].between(1, 5)),
-        "income_povery_ratio": d["INDFMPIR"],
+        "education": d["DMDEDUC2"].where(d["DMDEDUC2"].between(1, 5)),
+        "income_poverty_ratio": d["INDFMPIR"],
         "wt_mec_2yr": d["WTMEC2YR"],
         "psu": d["SDMVPSU"],
         "strata": d["SDMVSTRA"],
@@ -100,12 +97,12 @@ def load_nights(cycle: str) -> pd.DataFrame:
     hr["weekday"] = hr["PAXDAYWH"].astype(int)
 
     g = hr.groupby(["SEQN", "night"])
-    n = g.add(
+    n = g.agg(
         weekday=("weekday", "first"),
         sleep_min=("PAXSWMH", "sum"),
         wake_min=("PAXWWMH", "sum"),
         nonwear_min=("PAXNWMH", "sum"),
-        unknown_min=("PAXNWMH", "sum"),
+        unknown_min=("PAXUMH", "sum"),
         valid_min=("PAXVMH", "sum"),
         nap_min=("nap_min", "sum"),
         mims_total=("PAXMTSH", "sum"),
@@ -158,7 +155,7 @@ def add_cognitive_composite(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> None:
-    OUT.mkdirs(parents=True, exits_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
 
     demo, slq, cog, nights = [], [], [], []
     for cycle in CYCLES:
@@ -171,7 +168,7 @@ def main() -> None:
 
     older = set(demo.loc[demo["age"] >= MIN_AGE, "SEQN"])
     nights = nights[nights["SEQN"].isin(older) & (nights["valid_night"] == 1)]
-    counts = nights.grouby("SEQN").size()
+    counts = nights.groupby("SEQN").size()
     keep = set(counts[counts >= MIN_VALID_NIGHTS].index)
     nights = add_within_person_deviation(nights[nights["SEQN"].isin(keep)].copy())
 
@@ -183,7 +180,7 @@ def main() -> None:
     )
     participants = add_cognitive_composite(participants)
 
-    nights = nights.drop(columns="valid_nights")
+    nights = nights.drop(columns="valid_night")
     nights.to_csv(OUT/ "nhanes_nights.csv", index=False)
     participants.to_csv(OUT/ "nhanes_participants.csv", index=False)
 
